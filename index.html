@@ -1,0 +1,659 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0c0e18" />
+  <title>Attendance Calculator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Prevent flash of wrong theme -->
+  <script>
+    (function() {
+      var t = localStorage.getItem('theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body>
+
+  <header>
+    <h1>Attendance Calculator</h1>
+    <p>College Attendance Tracker</p>
+    <button class="theme-toggle" id="theme-toggle" title="Toggle theme">🌙</button>
+  </header>
+
+  <div class="scroll-content">
+
+    <div class="settings-bar">
+      <label for="threshold">Minimum Required Attendance</label>
+      <input type="number" id="threshold" min="1" max="100" value="75" inputmode="numeric" />
+      <span class="pct-symbol">%</span>
+    </div>
+
+    <div class="summary">
+      <div class="summary-card">
+        <div class="val" id="s-total-pct" style="color:var(--accent)">—</div>
+        <div class="lbl">Overall</div>
+      </div>
+      <div class="summary-card">
+        <div class="val" id="s-subjects">0</div>
+        <div class="lbl">Subjects</div>
+      </div>
+      <div class="summary-card">
+        <div class="val" id="s-safe" style="color:var(--success)">0</div>
+        <div class="lbl">Safe</div>
+      </div>
+      <div class="summary-card">
+        <div class="val" id="s-danger" style="color:var(--danger)">0</div>
+        <div class="lbl">At Risk</div>
+      </div>
+    </div>
+
+    <div class="overall-info" id="overall-detail" style="display:none">
+      <span class="overall-info-icon">ℹ️</span>
+      <span id="od-status-val"></span>
+    </div>
+
+    <div class="section-label">Subjects</div>
+    <div id="subjects-container"></div>
+
+    <div class="add-row">
+      <button id="add-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Subject
+      </button>
+      <button class="btn-catalog" id="catalog-btn">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><circle cx="17.5" cy="17.5" r="3.5"/></svg>
+        Browse Catalog
+      </button>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" id="clear-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        Clear
+      </button>
+      <button class="btn btn-primary" id="save-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save Data
+      </button>
+    </div>
+
+  </div>
+
+  <div id="toast"></div>
+
+  <!-- Course Catalog Modal -->
+  <div class="modal-overlay" id="catalog-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h2>Course Catalog &mdash; LPU B.Tech CSE</h2>
+        <button class="modal-close" id="catalog-close">&#10005;</button>
+      </div>
+      <div class="catalog-search-wrap">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="catalog-search" placeholder="Search by code or title&hellip;" autocorrect="off" autocapitalize="off" spellcheck="false" />
+      </div>
+      <div class="catalog-tabs" id="catalog-tabs"></div>
+      <div id="catalog-list"></div>
+    </div>
+  </div>
+
+  <script>
+    let subjects  = [];
+    let threshold = 75;
+
+    const container      = document.getElementById('subjects-container');
+    const thresholdInput = document.getElementById('threshold');
+
+    function loadFromStorage() {
+      try {
+        const raw = localStorage.getItem('attendanceData');
+        if (raw) {
+          const data = JSON.parse(raw);
+          subjects  = data.subjects  || [];
+          threshold = data.threshold || 75;
+        }
+      } catch (_) {}
+      if (subjects.length === 0) addBlankSubject();
+      thresholdInput.value = threshold;
+      renderAll();
+    }
+
+    function autoSave() {
+      localStorage.setItem('attendanceData', JSON.stringify({ subjects, threshold }));
+    }
+
+    function saveToStorage() {
+      autoSave();
+      showToast('Data saved');
+    }
+
+    function pct(attended, total) {
+      return total ? (attended / total) * 100 : 0;
+    }
+
+    function addBlankSubject() {
+      subjects.push({ id: Date.now(), name: '', total: '', attended: '', customThreshold: '' });
+    }
+
+    function getSubject(id) {
+      return subjects.find(s => s.id === id);
+    }
+
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function getStatusMsg(attended, total, thr) {
+      if (!total) return 'Enter values and press Calculate';
+      const current  = pct(attended, total);
+      const minNeeded = Math.ceil((thr / 100) * total);
+      const deficit   = Math.max(0, minNeeded - attended);
+      const metaLine  = '<div class="status-meta">Min. required: <strong>' + minNeeded + '</strong> / ' + total + ' classes &nbsp;|&nbsp; You attended: <strong>' + attended + '</strong></div>';
+
+      if (current >= thr) {
+        const canSkip = Math.floor((attended * 100 / thr) - total);
+        if (canSkip <= 0) return metaLine + '<div class="status-main ok-txt">You are exactly at the limit — do not miss any more classes.</div>';
+        return metaLine + '<div class="status-main ok-txt">You can skip up to <span class="highlight ok">' + canSkip + '</span> more class' + (canSkip !== 1 ? 'es' : '') + ' and stay above ' + thr + '%.</div>';
+      } else {
+        const need = Math.ceil((thr / 100 * total - attended) / (1 - thr / 100));
+        if (!isFinite(need) || need < 0) return metaLine + '<div class="status-main bad-txt">Attendance cannot be recovered — threshold is set to 100%.</div>';
+        return metaLine + '<div class="status-main bad-txt">Attend next <span class="highlight bad">' + need + '</span> consecutive class' + (need !== 1 ? 'es' : '') + ' to reach ' + thr + '%. &nbsp;<span class="deficit">(' + deficit + ' more needed)</span></div>';
+      }
+    }
+
+    function renderCard(subj) {
+      const attended   = parseFloat(subj.attended) || 0;
+      const total      = parseFloat(subj.total)    || 0;
+      const p          = pct(attended, total);
+      const effThr     = (subj.customThreshold !== '' && subj.customThreshold !== null)
+                           ? parseFloat(subj.customThreshold) : threshold;
+
+      let colorClass = '', fillColor = 'var(--text-muted)';
+      if (total > 0) {
+        if      (p >= effThr)       { colorClass = 'safe';   fillColor = 'var(--success)'; }
+        else if (p >= effThr - 10)  { colorClass = 'warn';   fillColor = 'var(--warning)'; }
+        else                        { colorClass = 'danger'; fillColor = 'var(--danger)';  }
+      }
+
+      const statusText = total ? getStatusMsg(attended, total, effThr) : 'Enter values and press Calculate';
+      const pctDisplay = total ? p.toFixed(1) + '%' : '—';
+      const isIdle     = !total;
+
+      const card = document.createElement('div');
+      card.className  = 'subject-card ' + colorClass;
+      card.dataset.id = subj.id;
+
+      card.innerHTML =
+        '<div class="card-name-row">' +
+          '<input class="subject-name" type="text" placeholder="Subject name" value="' + escHtml(subj.name) + '" autocorrect="off" autocapitalize="words" spellcheck="false" />' +
+          '<button class="btn-delete" title="Remove">DEL</button>' +
+        '</div>' +
+        '<div class="card-inputs-row">' +
+          '<div class="input-group">' +
+            '<label>Attended</label>' +
+            '<input type="number" class="inp-attended" min="0" placeholder="0" value="' + subj.attended + '" inputmode="numeric" />' +
+          '</div>' +
+          '<div class="input-group">' +
+            '<label>Delivered</label>' +
+            '<input type="number" class="inp-total" min="0" placeholder="0" value="' + subj.total + '" inputmode="numeric" />' +
+          '</div>' +
+          '<div class="input-group input-group-thr">' +
+            '<label>Required %</label>' +
+            '<input type="number" class="inp-thr" min="1" max="100" placeholder="' + threshold + '" value="' + (subj.customThreshold !== '' ? subj.customThreshold : '') + '" inputmode="numeric" />' +
+          '</div>' +
+        '</div>' +
+        '<button class="calc-btn">' +
+          '<span class="kbd">&#8629;</span> Calculate' +
+        '</button>' +
+        '<div class="card-bottom">' +
+          '<div class="progress-row">' +
+            '<div class="progress-track">' +
+              '<div class="progress-fill" style="width:' + Math.min(p, 100).toFixed(1) + '%;background:' + fillColor + '"></div>' +
+            '</div>' +
+            '<span class="pct-label" style="color:' + fillColor + '">' + pctDisplay + '</span>' +
+          '</div>' +
+          '<div class="status-msg">' + statusText + '</div>' +
+        '</div>';
+
+      card.querySelector('.subject-name').addEventListener('input', function(e) {
+        getSubject(subj.id).name = e.target.value;
+        scheduleSave();
+      });
+
+      function syncInputs() {
+        var s       = getSubject(subj.id);
+        var attInp  = card.querySelector('.inp-attended');
+        var totInp  = card.querySelector('.inp-total');
+        var tv      = parseFloat(totInp.value);
+        var av      = parseFloat(attInp.value);
+        s.total    = isNaN(tv) ? '' : Math.max(0, tv);
+        s.attended = isNaN(av) ? '' : Math.max(0, av);
+        var thrInp = card.querySelector('.inp-thr');
+        var thrv   = parseFloat(thrInp.value);
+        s.customThreshold = isNaN(thrv) ? '' : Math.min(100, Math.max(1, thrv));
+        if (s.total !== '' && s.attended !== '' && parseFloat(s.attended) > parseFloat(s.total)) {
+          showToast('⚠️ Attended cannot exceed total classes', 'warn');
+          attInp.classList.add('inp-error');
+          setTimeout(function() { attInp.classList.remove('inp-error'); }, 2000);
+          s.attended = s.total;
+          attInp.value = s.total;
+        }
+      }
+
+      ['.inp-total', '.inp-attended', '.inp-thr'].forEach(function(sel) {
+        card.querySelector(sel).addEventListener('input', syncInputs);
+        card.querySelector(sel).addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') { e.preventDefault(); syncInputs(); scheduleRender(); }
+        });
+      });
+
+      card.querySelector('.calc-btn').addEventListener('click', function() {
+        var s = getSubject(subj.id);
+        var tv = card.querySelector('.inp-total').value.trim();
+        var av = card.querySelector('.inp-attended').value.trim();
+        if (!tv && !av) {
+          showToast('⚠️ Enter Delivered and Attended classes first', 'warn');
+          card.querySelector('.inp-total').classList.add('inp-error');
+          card.querySelector('.inp-attended').classList.add('inp-error');
+          setTimeout(function() {
+            card.querySelector('.inp-total').classList.remove('inp-error');
+            card.querySelector('.inp-attended').classList.remove('inp-error');
+          }, 2000);
+          return;
+        }
+        if (!tv) {
+          showToast('⚠️ Enter Delivered classes first', 'warn');
+          card.querySelector('.inp-total').classList.add('inp-error');
+          setTimeout(function() { card.querySelector('.inp-total').classList.remove('inp-error'); }, 2000);
+          return;
+        }
+        if (!av) {
+          showToast('⚠️ Enter Attended classes first', 'warn');
+          card.querySelector('.inp-attended').classList.add('inp-error');
+          setTimeout(function() { card.querySelector('.inp-attended').classList.remove('inp-error'); }, 2000);
+          return;
+        }
+        syncInputs(); scheduleRender();
+      });
+
+      card.querySelector('.btn-delete').addEventListener('click', function() {
+        subjects = subjects.filter(function(x) { return x.id !== subj.id; });
+        if (subjects.length === 0) addBlankSubject();
+        renderAll();
+      });
+
+      return card;
+    }
+
+    function renderAll() {
+      autoSave();
+      container.innerHTML = '';
+      subjects.forEach(function(s) { container.appendChild(renderCard(s)); });
+      updateSummary();
+    }
+
+    function updateSummary() {
+      var valid        = subjects.filter(function(s) { return parseFloat(s.total) > 0; });
+      var totalClasses = valid.reduce(function(a, s) { return a + parseFloat(s.total); }, 0);
+      var totalAtt     = valid.reduce(function(a, s) { return a + (parseFloat(s.attended) || 0); }, 0);
+      var overall      = totalClasses ? totalAtt / totalClasses * 100 : null;
+      var safe         = valid.filter(function(s) {
+        var effThr = (s.customThreshold !== '' && s.customThreshold !== null) ? parseFloat(s.customThreshold) : threshold;
+        return pct(parseFloat(s.attended) || 0, parseFloat(s.total)) >= effThr;
+      }).length;
+
+      var pctEl = document.getElementById('s-total-pct');
+      pctEl.textContent = overall !== null ? overall.toFixed(1) + '%' : '—';
+      pctEl.style.color = overall === null ? 'var(--accent)' : overall >= threshold ? 'var(--success)' : 'var(--danger)';
+      document.getElementById('s-subjects').textContent = subjects.filter(function(s) { return s.name.trim() || s.total !== '' || s.attended !== ''; }).length;
+      document.getElementById('s-safe').textContent     = safe;
+      document.getElementById('s-danger').textContent   = valid.length - safe;
+
+      // Overall detail bar
+      var detailEl = document.getElementById('overall-detail');
+      if (!valid.length) { detailEl.style.display = 'none'; return; }
+      detailEl.style.display = 'flex';
+
+      var totalMinNeeded = valid.reduce(function(a, s) {
+        var effThr = (s.customThreshold !== '' && s.customThreshold !== null) ? parseFloat(s.customThreshold) : threshold;
+        return a + Math.ceil((effThr / 100) * parseFloat(s.total));
+      }, 0);
+      var deficit = totalMinNeeded - totalAtt;
+
+      document.getElementById('od-min') && (document.getElementById('od-min').textContent = '');
+
+      var statusVal = document.getElementById('od-status-val');
+      var detailEl  = document.getElementById('overall-detail');
+      if (deficit <= 0) {
+        var canSkipOverall = Math.floor(totalAtt - (threshold / 100) * totalClasses);
+        canSkipOverall = Math.max(0, canSkipOverall);
+        statusVal.innerHTML = 'You can skip up to <strong>' + canSkipOverall + '</strong> more class' + (canSkipOverall !== 1 ? 'es' : '') + ' across all subjects and still meet the minimum attendance.';
+        detailEl.classList.remove('info-danger');
+        detailEl.classList.add('info-safe');
+      } else {
+        statusVal.innerHTML = 'Attend <strong>' + deficit + '</strong> more class' + (deficit !== 1 ? 'es' : '') + ' across all subjects to fulfil your overall minimum attendance requirement.';
+        detailEl.classList.remove('info-safe');
+        detailEl.classList.add('info-danger');
+      }
+    }
+
+    var renderTimer = null;
+    function scheduleRender() { clearTimeout(renderTimer); renderTimer = setTimeout(renderAll, 120); }
+
+    var saveTimer = null;
+    function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(updateSummary, 120); }
+
+    function showToast(msg, type) {
+      var toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.remove('toast-warn');
+      if (type === 'warn') toast.classList.add('toast-warn');
+      toast.classList.add('show');
+      clearTimeout(toast._timer);
+      toast._timer = setTimeout(function() { toast.classList.remove('show'); }, 2400);
+    }
+
+    document.getElementById('add-btn').addEventListener('click', function() {
+      addBlankSubject();
+      renderAll();
+      setTimeout(function() {
+        var last = container.lastElementChild;
+        if (last) { last.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+        var inp = last && last.querySelector('.subject-name');
+        if (inp) inp.focus();
+      }, 60);
+    });
+
+    thresholdInput.addEventListener('input', function() {
+      var val = parseFloat(thresholdInput.value);
+      threshold = isNaN(val) ? 75 : Math.min(100, Math.max(1, val));
+      renderAll();
+    });
+
+    document.getElementById('save-btn').addEventListener('click', saveToStorage);
+
+    document.getElementById('clear-btn').addEventListener('click', function() {
+      if (confirm('Clear all subjects and reset data?')) {
+        subjects = [];
+        addBlankSubject();
+        renderAll();
+        showToast('Cleared');
+      }
+    });
+
+    loadFromStorage();
+
+    /* ── Course Catalog ─────────────────────────────────────── */
+    var CATALOG = {
+      'Term 1': [
+        {code:'CSE111', title:'Orientation to Computing I'},
+        {code:'CSE326', title:'Internet Programming Laboratory'},
+        {code:'INT108', title:'Python Programming'},
+        {code:'MTH174', title:'Engineering Mathematics'},
+        {code:'PES318', title:'Soft Skills I'},
+        {code:'ECE249', title:'Basic Electrical and Electronics Engineering'},
+        {code:'MEC136', title:'Engineering Graphics and Digital Fabrication'},
+        {code:'CHE110', title:'Environmental Studies'},
+        {code:'PHY110', title:'Engineering Physics'},
+        {code:'ECE279', title:'Basic Electrical and Electronics Engineering Laboratory'}
+      ],
+      'Term 2': [
+        {code:'CSE101', title:'Computer Programming'},
+        {code:'CSE121', title:'Orientation to Computing II'},
+        {code:'CSE320', title:'Software Engineering'},
+        {code:'INT306', title:'Database Management Systems'},
+        {code:'MTH401', title:'Discrete Mathematics'},
+        {code:'PEL121', title:'Communication Skills I'},
+        {code:'PEL125', title:'Upper Intermediate Communication Skills I'},
+        {code:'PEL130', title:'Advanced Communication Skills I'}
+      ],
+      'Term 3': [
+        {code:'CSE202', title:'Object Oriented Programming'},
+        {code:'CSE205', title:'Data Structures and Algorithms'},
+        {code:'CSE211', title:'Computer Organization and Design'},
+        {code:'CSE306', title:'Computer Networks'},
+        {code:'CSE307', title:'Internetworking Essentials'},
+        {code:'GEN231', title:'Community Development Project'},
+        {code:'CSE316', title:'Operating Systems'},
+        {code:'MTH302', title:'Probability and Statistics'},
+        {code:'CSE325', title:'Operating Systems Laboratory'},
+        {code:'PEL132', title:'Communication Skills II'},
+        {code:'PEL134', title:'Upper Intermediate Communication Skills II'},
+        {code:'PEL136', title:'Advanced Communication Skills II'}
+      ],
+      'Term 4': [
+        {code:'CSE310', title:'Programming in Java'},
+        {code:'CSE408', title:'Design and Analysis of Algorithms'},
+        {code:'INT428', title:'Artificial Intelligence Essentials'},
+        {code:'PEA305', title:'Analytical Skills I'},
+        {code:'PEA307', title:'Advanced Analytical Skills I'},
+        {code:'INT330', title:'Managing Cloud Solutions'},
+        {code:'INT242', title:'Cyber Security Essentials'},
+        {code:'INT217', title:'Introduction to Data Management'},
+        {code:'INT219', title:'Front End Web Developer'},
+        {code:'ECE217', title:'Introduction to Internet of Things'},
+        {code:'INT254', title:'Foundations of Machine Learning'},
+        {code:'CSE374', title:'Advance Software Engineering'},
+        {code:'INT362', title:'Cloud Architecture and Implementation I'},
+        {code:'INT249', title:'System Administration'},
+        {code:'INT375', title:'Data Science Toolbox: Python Programming'},
+        {code:'INT220', title:'Server Side Scripting'},
+        {code:'ECE341', title:'Programming IoT'},
+        {code:'INT354', title:'Machine Learning I'},
+        {code:'CSE375', title:'Software Testing'}
+      ],
+      'Term 5': [
+        {code:'CSE322', title:'Formal Languages and Automation Theory'},
+        {code:'INT363', title:'Cloud Microservices'},
+        {code:'INT250', title:'Digital Evidence Analysis'},
+        {code:'INT374', title:'Data Analytics with Power BI'},
+        {code:'INT252', title:'Web App Development with ReactJS'},
+        {code:'ECE128', title:'Introduction to IoT Networking Protocols'},
+        {code:'INT344', title:'Natural Language Processing'},
+        {code:'CSE376', title:'Automated Testing'},
+        {code:'INT364', title:'Cloud Architecture and Implementation II'},
+        {code:'INT244', title:'Securing Computing Systems'},
+        {code:'INT234', title:'Predictive Analytics'},
+        {code:'INT222', title:'Advanced Web Development'},
+        {code:'ECE237', title:'Architecting Smart IoT Devices'},
+        {code:'INT423', title:'Machine Learning II'},
+        {code:'CSE377', title:'Advance Testing Technologies'},
+        {code:'PEA306', title:'Analytical Skills II'},
+        {code:'PEA308', title:'Advanced Analytical Skills II'},
+        {code:'CSE329', title:'Prelude to Competitive Coding'},
+        {code:'CSE333', title:'Combinatorial Studies I'},
+        {code:'CSE330', title:'Competitive Coding Approaches — Techniques'},
+        {code:'PEV301', title:'Verbal Ability'},
+        {code:'CSE343', title:'Training in Programming'},
+        {code:'CSE443', title:'Seminar on Summer Training'}
+      ],
+      'Term 6': [
+        {code:'CSE332', title:'Industry Ethics and Legal Issues'},
+        {code:'CSE393', title:'Online Academic Course'},
+        {code:'INT327', title:'Cloud Infrastructure and Resource Management'},
+        {code:'INT245', title:'Penetration Testing'},
+        {code:'INT312', title:'Big Data Fundamentals'},
+        {code:'INT221', title:'MVC Programming'},
+        {code:'ECE129', title:'IoT for Digital Society'},
+        {code:'INT345', title:'Computer Vision'},
+        {code:'CSE378', title:'Web Services API Automation Testing'},
+        {code:'CSE334', title:'Combinatorial Studies II'},
+        {code:'CSE331', title:'Coding Pearls'},
+        {code:'CSE357', title:'Combinatorial Studies'},
+        {code:'PES319', title:'Soft Skills II'}
+      ],
+      'Term 7': [
+        {code:'CSE339', title:'Capstone Project I'},
+        {code:'CSE304', title:'Computer Graphics and Visualization'},
+        {code:'CSE327', title:'Simulation and Modelling'},
+        {code:'CSE406', title:'Advanced Java Programming'},
+        {code:'CSE434', title:'Game Development in 3D'},
+        {code:'CSE436', title:'Blockchain'},
+        {code:'INT402', title:'Modern Web Programming Tools and Techniques'},
+        {code:'CSE328', title:'Simulation and Modelling Laboratory'},
+        {code:'INT328', title:'Network Virtualization and Cloud Security'},
+        {code:'INT251', title:'Malware Analysis and Cyber Defence'},
+        {code:'INT315', title:'Cluster Computing'},
+        {code:'INT253', title:'Web Development in Python using Django'},
+        {code:'ECE140', title:'Workshop on IoT for Digital Society'},
+        {code:'INT422', title:'Deep Learning'},
+        {code:'CSE379', title:'Mobile Automated Testing'},
+        {code:'CSE335', title:'Combinatorial Studies III'},
+        {code:'CSE447', title:'Industry Co-Op Project I'}
+      ],
+      'Term 8': [
+        {code:'CSE435', title:'Comprehensive Seminar'},
+        {code:'CSE439', title:'Capstone Project II'},
+        {code:'CSE403', title:'Network Security and Cryptography'},
+        {code:'CSE493', title:'Linux System Administration'},
+        {code:'CSE504', title:'Storage Technology Foundation'},
+        {code:'INT411', title:'Software Project Management'},
+        {code:'CSE507', title:'Storage Technology Foundation Laboratory'},
+        {code:'INT416', title:'Software Project Management Laboratory'},
+        {code:'CSE441', title:'Industry Internship Project'},
+        {code:'CSE448', title:'Industry Co-Op Project II'}
+      ]
+    };
+
+    var catalogActiveTerm = 'All';
+    var catalogQuery      = '';
+
+    function openCatalog() {
+      document.getElementById('catalog-overlay').classList.add('open');
+      document.getElementById('catalog-search').value = '';
+      catalogQuery = '';
+      catalogActiveTerm = 'All';
+      buildCatalogTabs();
+      renderCatalogList();
+      setTimeout(function() { document.getElementById('catalog-search').focus(); }, 350);
+    }
+
+    function closeCatalog() {
+      document.getElementById('catalog-overlay').classList.remove('open');
+    }
+
+    function getAddedNames() {
+      return subjects.map(function(s) { return s.name.trim().toUpperCase(); }).filter(Boolean);
+    }
+
+    function buildCatalogTabs() {
+      var tabs = document.getElementById('catalog-tabs');
+      var terms = ['All'].concat(Object.keys(CATALOG));
+      tabs.innerHTML = '';
+      terms.forEach(function(term) {
+        var btn = document.createElement('button');
+        btn.className = 'tab-btn' + (term === catalogActiveTerm ? ' active' : '');
+        btn.textContent = term;
+        btn.addEventListener('click', function() {
+          catalogActiveTerm = term;
+          buildCatalogTabs();
+          renderCatalogList();
+        });
+        tabs.appendChild(btn);
+      });
+    }
+
+    function renderCatalogList() {
+      var list    = document.getElementById('catalog-list');
+      var query   = catalogQuery.trim().toUpperCase();
+      var added   = getAddedNames();
+      var terms   = catalogActiveTerm === 'All' ? Object.keys(CATALOG) : [catalogActiveTerm];
+      var hasAny  = false;
+      list.innerHTML = '';
+
+      terms.forEach(function(term) {
+        var courses = CATALOG[term].filter(function(c) {
+          if (!query) return true;
+          return c.code.toUpperCase().includes(query) || c.title.toUpperCase().includes(query);
+        });
+        if (!courses.length) return;
+        hasAny = true;
+
+        var groupEl = document.createElement('div');
+        groupEl.className = 'catalog-term-group';
+        if (catalogActiveTerm === 'All') {
+          var lbl = document.createElement('div');
+          lbl.className = 'catalog-term-label';
+          lbl.textContent = term;
+          groupEl.appendChild(lbl);
+        }
+
+        courses.forEach(function(c) {
+          var isAdded = added.includes(c.code + ' — ' + c.title.toUpperCase()) ||
+                        added.includes(c.title.toUpperCase()) ||
+                        added.includes(c.code.toUpperCase());
+          var item = document.createElement('div');
+          item.className = 'catalog-item' + (isAdded ? ' added' : '');
+          item.innerHTML =
+            '<span class="catalog-code">' + c.code + '</span>' +
+            '<span class="catalog-title">' + c.title + '</span>' +
+            '<span class="catalog-add-icon">' + (isAdded ? '&#10003;' : '+') + '</span>';
+
+          item.addEventListener('click', function() {
+            var name = c.code + ' — ' + c.title;
+            var dupName = subjects.find(function(s) {
+              return s.name.trim().toUpperCase() === name.toUpperCase();
+            });
+            if (dupName) { showToast('Already in list'); return; }
+            var blank = subjects.find(function(s) { return !s.name.trim() && !s.total && !s.attended; });
+            if (blank) {
+              blank.name = name;
+            } else {
+              subjects.push({ id: Date.now(), name: name, total: '', attended: '' });
+            }
+            renderAll();
+            item.classList.add('added');
+            item.querySelector('.catalog-add-icon').innerHTML = '&#10003;';
+            showToast(c.code + ' added');
+          });
+
+          groupEl.appendChild(item);
+        });
+
+        list.appendChild(groupEl);
+      });
+
+      if (!hasAny) {
+        list.innerHTML = '<div class="catalog-empty">No courses match your search.</div>';
+      }
+    }
+
+    document.getElementById('catalog-btn').addEventListener('click', openCatalog);
+    document.getElementById('catalog-close').addEventListener('click', closeCatalog);
+
+    document.getElementById('catalog-overlay').addEventListener('click', function(e) {
+      if (e.target === this) closeCatalog();
+    });
+
+    document.getElementById('catalog-search').addEventListener('input', function() {
+      catalogQuery = this.value;
+      renderCatalogList();
+    });
+
+    /* ── Theme toggle ─────────────────────────────────── */
+    var themeBtn = document.getElementById('theme-toggle');
+    function applyTheme(t, notify) {
+      document.documentElement.setAttribute('data-theme', t);
+      localStorage.setItem('theme', t);
+      /* Icon shows what you'll switch TO (opposite of current) */
+      themeBtn.innerHTML = t === 'dark'
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/></svg>';
+      if (notify) showToast(t === 'light' ? '☀️ Switched to Light Mode' : '🌙 Switched to Dark Mode');
+    }
+    applyTheme(localStorage.getItem('theme') || 'dark', false);
+    themeBtn.addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      applyTheme(current === 'dark' ? 'light' : 'dark', true);
+    });
+  </script>
+</body>
+</html>
