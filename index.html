@@ -123,9 +123,9 @@
       </button>
     </div>
 
-  </div>
+    <p class="tagline">Track smart. Attend smarter.</p>
 
-  <div id="toast"></div>
+  </div></div>
 
   <!-- Course Catalog Modal -->
   <div class="modal-overlay" id="catalog-overlay">
@@ -241,11 +241,11 @@
         '<div class="card-inputs-row">' +
           '<div class="input-group">' +
             '<label>Attended</label>' +
-            '<input type="number" class="inp-attended" min="0" placeholder="0" value="' + subj.attended + '" inputmode="numeric" />' +
+            '<input type="number" class="inp-attended" min="0" max="999" placeholder="0" value="' + subj.attended + '" inputmode="numeric" />' +
           '</div>' +
           '<div class="input-group">' +
             '<label>Delivered</label>' +
-            '<input type="number" class="inp-total" min="0" placeholder="0" value="' + subj.total + '" inputmode="numeric" />' +
+            '<input type="number" class="inp-total" min="0" max="999" placeholder="0" value="' + subj.total + '" inputmode="numeric" />' +
           '</div>' +
           '<div class="input-group input-group-thr">' +
             '<label>Required %</label>' +
@@ -287,15 +287,17 @@
           s.attended = s.total;
           attInp.value = s.total;
         }
-        // Auto-calculate as soon as both fields have values
-        if (s.total !== '' && s.attended !== '') {
-          scheduleRender();
-        } else if (andRender) {
-          scheduleRender();
-        } else {
-          scheduleSave();
-        }
+        // Auto-calculate as soon as both fields have values (in-place, no DOM rebuild)
+        scheduleLiveUpdate(s.id);
       }
+
+      // Hard cap attended & delivered at 3 digits
+      [attInp, totInp].forEach(function(inp) {
+        inp.addEventListener('input', function() {
+          if (inp.value.length > 3) inp.value = inp.value.slice(0, 3);
+          if (inp.value !== '' && parseFloat(inp.value) > 999) inp.value = '999';
+        });
+      });
 
       // Blur sanitization — clamp pasted/typed values on focus-out
       [attInp, totInp].forEach(function(inp) {
@@ -328,6 +330,45 @@
       });
 
       return card;
+    }
+
+    function updateCardDisplay(id) {
+      var subj = getSubject(id);
+      if (!subj) return;
+      var card = container.querySelector('[data-id="' + id + '"]');
+      if (!card) return;
+
+      var attended = parseFloat(subj.attended) || 0;
+      var total    = parseFloat(subj.total)    || 0;
+      var p        = pct(attended, total);
+      var effThr   = (subj.customThreshold !== '' && subj.customThreshold !== null)
+                       ? parseFloat(subj.customThreshold) : threshold;
+
+      var colorClass = '', fillColor = 'var(--text-muted)';
+      if (total > 0) {
+        if      (p >= 75) { colorClass = 'safe';   fillColor = 'var(--success)'; }
+        else if (p >= 60) { colorClass = 'info';   fillColor = 'var(--info)'; }
+        else if (p >= 50) { colorClass = 'warn';   fillColor = 'var(--warning)'; }
+        else              { colorClass = 'danger'; fillColor = 'var(--danger)'; }
+      }
+
+      card.className = 'subject-card ' + colorClass;
+      var fill = card.querySelector('.progress-fill');
+      if (fill) { fill.style.width = Math.min(p, 100).toFixed(1) + '%'; fill.style.background = fillColor; }
+      var lbl = card.querySelector('.pct-label');
+      if (lbl) { lbl.textContent = total ? p.toFixed(1) + '%' : '—'; lbl.style.color = fillColor; }
+      var msg = card.querySelector('.status-msg');
+      if (msg) msg.innerHTML = total ? getStatusMsg(attended, total, effThr) : 'Enter values above to see your attendance status';
+    }
+
+    var liveTimer = null;
+    function scheduleLiveUpdate(id) {
+      clearTimeout(liveTimer);
+      liveTimer = setTimeout(function() {
+        updateCardDisplay(id);
+        updateSummary();
+        autoSave();
+      }, 120);
     }
 
     function renderAll() {
@@ -366,24 +407,30 @@
       if (!valid.length) { detailEl.style.display = 'none'; return; }
       detailEl.style.display = 'flex';
 
-      var totalMinNeeded = valid.reduce(function(a, s) {
-        var effThr = (s.customThreshold !== '' && s.customThreshold !== null) ? parseFloat(s.customThreshold) : threshold;
-        return a + Math.ceil((effThr / 100) * parseFloat(s.total));
-      }, 0);
-      var deficit = totalMinNeeded - totalAtt;
-
-      document.getElementById('od-min') && (document.getElementById('od-min').textContent = '');
-
       var statusVal = document.getElementById('od-status-val');
-      var detailEl  = document.getElementById('overall-detail');
-      if (deficit <= 0) {
-        var canSkipOverall = Math.floor(totalAtt - (threshold / 100) * totalClasses);
-        canSkipOverall = Math.max(0, canSkipOverall);
-        statusVal.innerHTML = 'You can skip up to <strong>' + canSkipOverall + '</strong> more class' + (canSkipOverall !== 1 ? 'es' : '') + ' across all subjects and still meet the minimum attendance.';
+
+      // Overall attendance % vs required threshold
+      var overallPct = totalClasses ? (totalAtt / totalClasses * 100) : 0;
+      var gap = (threshold / 100) * totalClasses - totalAtt; // classes short of threshold
+
+      if (gap <= 0) {
+        // How many classes can be skipped before dropping below threshold
+        // skip x: totalAtt / (totalClasses + x) >= threshold/100  →  x <= totalAtt*100/threshold - totalClasses
+        var canSkip = Math.max(0, Math.floor(totalAtt * 100 / threshold - totalClasses));
+        statusVal.innerHTML =
+          'Overall: <strong>' + overallPct.toFixed(1) + '%</strong> &nbsp;/&nbsp; Required: <strong>' + threshold + '%</strong>' +
+          '<br><span class="od-sub">You can afford to skip up to <strong>' + canSkip + '</strong> more class' + (canSkip !== 1 ? 'es' : '') + ' and stay above ' + threshold + '%.</span>';
         detailEl.classList.remove('info-danger');
         detailEl.classList.add('info-safe');
       } else {
-        statusVal.innerHTML = 'Attend <strong>' + deficit + '</strong> more class' + (deficit !== 1 ? 'es' : '') + ' across all subjects to fulfil your overall minimum attendance requirement.';
+        // Consecutive classes needed: attend x new classes → (totalAtt+x)/(totalClasses+x) >= thr/100
+        // x >= (thr/100*totalClasses - totalAtt) / (1 - thr/100)
+        var needed = (threshold >= 100)
+          ? '∞'
+          : Math.ceil(gap / (1 - threshold / 100));
+        statusVal.innerHTML =
+          'Overall: <strong>' + overallPct.toFixed(1) + '%</strong> &nbsp;/&nbsp; Required: <strong>' + threshold + '%</strong>' +
+          '<br><span class="od-sub">Attend the next <strong>' + needed + '</strong> consecutive class' + (needed !== 1 ? 'es' : '') + ' without a single absence to reach ' + threshold + '%.</span>';
         detailEl.classList.remove('info-safe');
         detailEl.classList.add('info-danger');
       }
@@ -783,7 +830,8 @@
       if (notify) showToast(t === 'light' ? '☀️ Switched to Light Mode' : '🌙 Switched to Dark Mode');
     }
     applyTheme(localStorage.getItem('theme') || 'dark', false);
-    document.getElementById('theme-row').addEventListener('click', function() {
+    document.getElementById('theme-row').addEventListener('click', function(e) {
+      e.stopPropagation();
       var current = document.documentElement.getAttribute('data-theme');
       applyTheme(current === 'dark' ? 'light' : 'dark', true);
     });
@@ -810,23 +858,25 @@
     var menuBtn      = document.getElementById('menu-btn');
     var menuDropdown = document.getElementById('menu-dropdown');
 
+    function openMenu()  { menuDropdown.classList.add('open');    menuBtn.classList.add('active'); }
+    function closeMenu() { menuDropdown.classList.remove('open'); menuBtn.classList.remove('active'); }
+
     menuBtn.addEventListener('click', function(e) {
       e.stopPropagation();
-      var isOpen = menuDropdown.classList.contains('open');
-      menuDropdown.classList.toggle('open', !isOpen);
-      menuBtn.classList.toggle('active', !isOpen);
+      menuDropdown.classList.contains('open') ? closeMenu() : openMenu();
     });
 
-    // Close when clicking outside
-    document.addEventListener('click', function(e) {
-      if (!menuDropdown.contains(e.target) && e.target !== menuBtn) {
-        menuDropdown.classList.remove('open');
-        menuBtn.classList.remove('active');
+    // Close when touching/clicking outside — pointerdown fires before click, more reliable on touch
+    document.addEventListener('pointerdown', function(e) {
+      if (menuDropdown.classList.contains('open') &&
+          !menuDropdown.contains(e.target) &&
+          !menuBtn.contains(e.target)) {
+        closeMenu();
       }
     });
 
     // Stop size-row clicks from closing the dropdown
-    document.getElementById('theme-row').addEventListener('click', function(e) {
+    document.getElementById('menu-dropdown').addEventListener('click', function(e) {
       e.stopPropagation();
     });
 

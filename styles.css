@@ -228,8 +228,8 @@ header {
   top: 50%;
   left: 16px;
   transform: translateY(-50%);
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: 99px;
@@ -240,6 +240,7 @@ header {
   justify-content: center;
   padding: 0;
   flex-shrink: 0;
+  touch-action: manipulation;
   transition: background 0.2s, border-color 0.2s, color 0.2s;
   -webkit-tap-highlight-color: transparent;
 }
@@ -249,6 +250,13 @@ header {
   background: var(--surface);
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* SVG inside menu-btn must never intercept events */
+.menu-btn svg,
+.menu-btn svg * {
+  pointer-events: none;
+  cursor: pointer;
 }
 
 /* ── Dropdown panel ── */
@@ -347,7 +355,7 @@ header {
   position: relative;
   flex-shrink: 0;
   transition: background 0.22s;
-  pointer-events: none;
+  cursor: pointer;
 }
 
 [data-theme="dark"] .toggle-switch.theme-sw {
@@ -571,9 +579,9 @@ header p {
 ═══════════════════════════════════════════════ */
 .overall-info {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
-  padding: 11px 16px;
+  padding: 12px 16px;
   border-radius: var(--radius-md);
   border: 1px solid var(--glass-border);
   background: var(--glass-bg);
@@ -583,7 +591,7 @@ header p {
   font-size: 0.82rem;
   font-weight: 500;
   color: var(--info-text);
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .overall-info.info-safe {
@@ -599,7 +607,18 @@ header p {
 }
 
 .overall-info strong {
-  color: var(--on-card);
+  font-weight: 700;
+}
+
+.od-sub {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 400;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+.od-sub strong {
   font-weight: 700;
 }
 
@@ -609,6 +628,7 @@ header p {
 .overall-info-icon {
   font-size: 1rem;
   flex-shrink: 0;
+  margin-top: 1px;
 }
 
 /* ═══════════════════════════════════════════════
@@ -1408,6 +1428,20 @@ header p {
   font-family: inherit;
 }
 .catalog-minor-btn:hover { opacity: 0.85; }
+
+/* Tagline */
+.tagline {
+  text-align: center;
+  font-size: 0.72rem;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  opacity: 0.45;
+  margin-top: 18px;
+  margin-bottom: 4px;
+  user-select: none;
+  font-family: 'Inter', inherit;
+}
 
 /* ═══════════════════════════════════════════════
    INPUT ERROR STATE
