@@ -127,6 +127,18 @@
 
   </div></div>
 
+  <!-- Save Confirmation Popup -->
+  <div class="save-popup-overlay" id="save-popup-overlay">
+    <div class="save-popup">
+      <div class="save-popup-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="32" height="32"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11.5 14.5 15.5 9.5"/></svg>
+      </div>
+      <h3 class="save-popup-title">Data Saved!</h3>
+      <p class="save-popup-msg">Your data is saved to this device.<br>You can make changes anytime &mdash; just open this link again.</p>
+      <button class="save-popup-ok" id="save-popup-ok">Got it</button>
+    </div>
+  </div>
+
   <!-- Course Catalog Modal -->
   <div class="modal-overlay" id="catalog-overlay">
     <div class="modal-sheet">
@@ -171,7 +183,7 @@
 
     function saveToStorage() {
       autoSave();
-      showToast('Data saved');
+      document.getElementById('save-popup-overlay').classList.add('open');
     }
 
     function pct(attended, total) {
@@ -480,6 +492,12 @@
     });
 
     document.getElementById('save-btn').addEventListener('click', saveToStorage);
+    document.getElementById('save-popup-ok').addEventListener('click', function() {
+      document.getElementById('save-popup-overlay').classList.remove('open');
+    });
+    document.getElementById('save-popup-overlay').addEventListener('click', function(e) {
+      if (e.target === this) this.classList.remove('open');
+    });
 
     document.getElementById('clear-btn').addEventListener('click', function() {
       if (confirm('Clear all subjects and reset data?')) {
