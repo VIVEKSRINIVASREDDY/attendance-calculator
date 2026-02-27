@@ -9,11 +9,13 @@
   <title>Attendance Calculator</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
-  <!-- Prevent flash of wrong theme -->
+  <!-- Prevent flash of wrong theme / restore zoom -->
   <script>
     (function() {
       var t = localStorage.getItem('theme') || 'dark';
       document.documentElement.setAttribute('data-theme', t);
+      var z = parseFloat(localStorage.getItem('pageZoom')) || 1;
+      document.documentElement.style.zoom = z;
     })();
   </script>
 </head>
@@ -30,9 +32,38 @@
   </div>
 
   <header>
+    <!-- 3-dot menu -->
+    <button class="menu-btn" id="menu-btn" aria-label="Options" title="Options">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+        <circle cx="12" cy="5"  r="1.8"/>
+        <circle cx="12" cy="12" r="1.8"/>
+        <circle cx="12" cy="19" r="1.8"/>
+      </svg>
+    </button>
+
+    <div class="menu-dropdown" id="menu-dropdown">
+      <!-- Theme row -->
+      <div class="menu-row" id="theme-row">
+        <span class="menu-row-icon" id="menu-theme-icon"></span>
+        <span class="menu-row-label" id="menu-theme-label">Dark Mode</span>
+        <div class="toggle-switch theme-sw">
+          <div class="toggle-knob"></div>
+        </div>
+      </div>
+      <div class="menu-divider"></div>
+      <!-- Size row -->
+      <div class="menu-row menu-row-size">
+        <span class="menu-row-label">Text Size</span>
+        <div class="menu-size-group">
+          <button id="size-down" aria-label="Decrease">A−</button>
+          <span id="size-val">100%</span>
+          <button id="size-up" aria-label="Increase">A+</button>
+        </div>
+      </div>
+    </div>
+
     <h1>Attendance Calculator</h1>
     <p>College Attendance Tracker</p>
-    <button class="theme-toggle" id="theme-toggle" title="Toggle theme" aria-label="Toggle theme"></button>
   </header>
 
   <div class="scroll-content">
@@ -188,9 +219,10 @@
 
       let colorClass = '', fillColor = 'var(--text-muted)';
       if (total > 0) {
-        if      (p >= effThr)       { colorClass = 'safe';   fillColor = 'var(--success)'; }
-        else if (p >= effThr - 10)  { colorClass = 'warn';   fillColor = 'var(--warning)'; }
-        else                        { colorClass = 'danger'; fillColor = 'var(--danger)';  }
+        if      (p >= 75) { colorClass = 'safe';   fillColor = 'var(--success)'; }
+        else if (p >= 60) { colorClass = 'info';   fillColor = 'var(--info)'; }
+        else if (p >= 50) { colorClass = 'warn';   fillColor = 'var(--warning)'; }
+        else              { colorClass = 'danger'; fillColor = 'var(--danger)'; }
       }
 
       const statusText = total ? getStatusMsg(attended, total, effThr) : 'Enter values and press Calculate';
@@ -238,15 +270,16 @@
         scheduleSave();
       });
 
-      function syncInputs() {
-        var s       = getSubject(subj.id);
-        var attInp  = card.querySelector('.inp-attended');
-        var totInp  = card.querySelector('.inp-total');
-        var tv      = parseFloat(totInp.value);
-        var av      = parseFloat(attInp.value);
+      var attInp = card.querySelector('.inp-attended');
+      var totInp = card.querySelector('.inp-total');
+      var thrInp = card.querySelector('.inp-thr');
+
+      function syncInputs(andRender) {
+        var s  = getSubject(subj.id);
+        var tv = parseFloat(totInp.value);
+        var av = parseFloat(attInp.value);
         s.total    = isNaN(tv) ? '' : Math.max(0, tv);
         s.attended = isNaN(av) ? '' : Math.max(0, av);
-        var thrInp = card.querySelector('.inp-thr');
         var thrv   = parseFloat(thrInp.value);
         s.customThreshold = isNaN(thrv) ? '' : Math.min(100, Math.max(1, thrv));
         if (s.total !== '' && s.attended !== '' && parseFloat(s.attended) > parseFloat(s.total)) {
@@ -256,42 +289,71 @@
           s.attended = s.total;
           attInp.value = s.total;
         }
+        // Auto-calculate as soon as both fields have values
+        if (s.total !== '' && s.attended !== '') {
+          scheduleRender();
+        } else if (andRender) {
+          scheduleRender();
+        } else {
+          scheduleSave();
+        }
       }
 
-      ['.inp-total', '.inp-attended', '.inp-thr'].forEach(function(sel) {
-        card.querySelector(sel).addEventListener('input', syncInputs);
-        card.querySelector(sel).addEventListener('keydown', function(e) {
-          if (e.key === 'Enter') { e.preventDefault(); syncInputs(); scheduleRender(); }
+      // Blur sanitization — clamp pasted/typed values on focus-out
+      [attInp, totInp].forEach(function(inp) {
+        inp.addEventListener('blur', function() {
+          var v = parseFloat(inp.value);
+          if (!isNaN(v)) inp.value = Math.max(0, Math.round(v));
         });
+      });
+      thrInp.addEventListener('blur', function() {
+        var v = parseFloat(thrInp.value);
+        if (!isNaN(v)) thrInp.value = Math.min(100, Math.max(1, Math.round(v)));
+      });
+
+      // Keyboard flow: Enter/Tab moves between inputs naturally, Enter on last triggers calc
+      var flowInputs = [attInp, totInp, thrInp];
+      flowInputs.forEach(function(inp, idx) {
+        inp.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            if (idx < flowInputs.length - 1) {
+              flowInputs[idx + 1].focus();
+            } else {
+              syncInputs(true);
+              card.querySelector('.calc-btn').focus();
+            }
+          }
+        });
+        inp.addEventListener('input', function() { syncInputs(false); });
       });
 
       card.querySelector('.calc-btn').addEventListener('click', function() {
-        var s = getSubject(subj.id);
-        var tv = card.querySelector('.inp-total').value.trim();
-        var av = card.querySelector('.inp-attended').value.trim();
+        var tv = totInp.value.trim();
+        var av = attInp.value.trim();
         if (!tv && !av) {
           showToast('⚠️ Enter Delivered and Attended classes first', 'warn');
-          card.querySelector('.inp-total').classList.add('inp-error');
-          card.querySelector('.inp-attended').classList.add('inp-error');
+          totInp.classList.add('inp-error');
+          attInp.classList.add('inp-error');
           setTimeout(function() {
-            card.querySelector('.inp-total').classList.remove('inp-error');
-            card.querySelector('.inp-attended').classList.remove('inp-error');
+            totInp.classList.remove('inp-error');
+            attInp.classList.remove('inp-error');
           }, 2000);
           return;
         }
         if (!tv) {
           showToast('⚠️ Enter Delivered classes first', 'warn');
-          card.querySelector('.inp-total').classList.add('inp-error');
-          setTimeout(function() { card.querySelector('.inp-total').classList.remove('inp-error'); }, 2000);
+          totInp.classList.add('inp-error');
+          setTimeout(function() { totInp.classList.remove('inp-error'); }, 2000);
           return;
         }
         if (!av) {
           showToast('⚠️ Enter Attended classes first', 'warn');
-          card.querySelector('.inp-attended').classList.add('inp-error');
-          setTimeout(function() { card.querySelector('.inp-attended').classList.remove('inp-error'); }, 2000);
+          attInp.classList.add('inp-error');
+          setTimeout(function() { attInp.classList.remove('inp-error'); }, 2000);
           return;
         }
-        syncInputs(); scheduleRender();
+        syncInputs(true);
       });
 
       card.querySelector('.btn-delete').addEventListener('click', function() {
@@ -356,10 +418,10 @@
     }
 
     var renderTimer = null;
-    function scheduleRender() { clearTimeout(renderTimer); renderTimer = setTimeout(renderAll, 120); }
+    function scheduleRender() { clearTimeout(renderTimer); renderTimer = setTimeout(renderAll, 80); }
 
     var saveTimer = null;
-    function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(updateSummary, 120); }
+    function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(updateSummary, 80); }
 
     function showToast(msg, type) {
       var toast = document.getElementById('toast');
@@ -382,9 +444,19 @@
       }, 60);
     });
 
+    var threshTimer = null;
     thresholdInput.addEventListener('input', function() {
+      clearTimeout(threshTimer);
+      threshTimer = setTimeout(function() {
+        var val = parseFloat(thresholdInput.value);
+        threshold = isNaN(val) ? 75 : Math.min(100, Math.max(1, val));
+        renderAll();
+      }, 200);
+    });
+    thresholdInput.addEventListener('blur', function() {
       var val = parseFloat(thresholdInput.value);
-      threshold = isNaN(val) ? 75 : Math.min(100, Math.max(1, val));
+      if (isNaN(val) || val < 1)  { thresholdInput.value = 1;   threshold = 1; }
+      if (val > 100)               { thresholdInput.value = 100; threshold = 100; }
       renderAll();
     });
 
@@ -460,46 +532,54 @@
         {code:'INT354', title:'Machine Learning I'},
         {code:'CSE375', title:'Software Testing'}
       ],
-      'Term 5': [
-        {code:'CSE322', title:'Formal Languages and Automation Theory'},
-        {code:'INT363', title:'Cloud Microservices'},
-        {code:'INT250', title:'Digital Evidence Analysis'},
-        {code:'INT374', title:'Data Analytics with Power BI'},
-        {code:'INT252', title:'Web App Development with ReactJS'},
-        {code:'ECE128', title:'Introduction to IoT Networking Protocols'},
-        {code:'INT344', title:'Natural Language Processing'},
-        {code:'CSE376', title:'Automated Testing'},
-        {code:'INT364', title:'Cloud Architecture and Implementation II'},
-        {code:'INT244', title:'Securing Computing Systems'},
-        {code:'INT234', title:'Predictive Analytics'},
-        {code:'INT222', title:'Advanced Web Development'},
-        {code:'ECE237', title:'Architecting Smart IoT Devices'},
-        {code:'INT423', title:'Machine Learning II'},
-        {code:'CSE377', title:'Advance Testing Technologies'},
-        {code:'PEA306', title:'Analytical Skills II'},
-        {code:'PEA308', title:'Advanced Analytical Skills II'},
-        {code:'CSE329', title:'Prelude to Competitive Coding'},
-        {code:'CSE333', title:'Combinatorial Studies I'},
-        {code:'CSE330', title:'Competitive Coding Approaches — Techniques'},
-        {code:'PEV301', title:'Verbal Ability'},
-        {code:'CSE343', title:'Training in Programming'},
-        {code:'CSE443', title:'Seminar on Summer Training'}
-      ],
-      'Term 6': [
-        {code:'CSE332', title:'Industry Ethics and Legal Issues'},
-        {code:'CSE393', title:'Online Academic Course'},
-        {code:'INT327', title:'Cloud Infrastructure and Resource Management'},
-        {code:'INT245', title:'Penetration Testing'},
-        {code:'INT312', title:'Big Data Fundamentals'},
-        {code:'INT221', title:'MVC Programming'},
-        {code:'ECE129', title:'IoT for Digital Society'},
-        {code:'INT345', title:'Computer Vision'},
-        {code:'CSE378', title:'Web Services API Automation Testing'},
-        {code:'CSE334', title:'Combinatorial Studies II'},
-        {code:'CSE331', title:'Coding Pearls'},
-        {code:'CSE357', title:'Combinatorial Studies'},
-        {code:'PES319', title:'Soft Skills II'}
-      ],
+      'Term 5': { subgroups: [
+        { label: 'Core Subjects', courses: [
+          {code:'CSE322', title:'Formal Languages and Automation Theory'},
+          {code:'CSE376', title:'Automated Testing'},
+          {code:'CSE377', title:'Advance Testing Technologies'},
+          {code:'PEA306', title:'Analytical Skills II'},
+          {code:'PEA308', title:'Advanced Analytical Skills II'},
+          {code:'CSE329', title:'Prelude to Competitive Coding'},
+          {code:'CSE333', title:'Combinatorial Studies I'},
+          {code:'CSE330', title:'Competitive Coding Approaches — Techniques'},
+          {code:'PEV301', title:'Verbal Ability'},
+          {code:'CSE343', title:'Training in Programming'},
+          {code:'CSE443', title:'Seminar on Summer Training'}
+        ]},
+        { label: 'Elective / Minor', courses: [
+          {code:'INT363', title:'Cloud Microservices'},
+          {code:'INT250', title:'Digital Evidence Analysis'},
+          {code:'INT374', title:'Data Analytics with Power BI'},
+          {code:'INT252', title:'Web App Development with ReactJS'},
+          {code:'ECE128', title:'Introduction to IoT Networking Protocols'},
+          {code:'INT344', title:'Natural Language Processing'},
+          {code:'INT364', title:'Cloud Architecture and Implementation II'},
+          {code:'INT244', title:'Securing Computing Systems'},
+          {code:'INT234', title:'Predictive Analytics'},
+          {code:'INT222', title:'Advanced Web Development'},
+          {code:'ECE237', title:'Architecting Smart IoT Devices'},
+          {code:'INT423', title:'Machine Learning II'}
+        ]}
+      ]},
+      'Term 6': { subgroups: [
+        { label: 'Core Subjects', courses: [
+          {code:'CSE332', title:'Industry Ethics and Legal Issues'},
+          {code:'CSE393', title:'Online Academic Course'},
+          {code:'CSE378', title:'Web Services API Automation Testing'},
+          {code:'CSE334', title:'Combinatorial Studies II'},
+          {code:'CSE331', title:'Coding Pearls'},
+          {code:'CSE357', title:'Combinatorial Studies'},
+          {code:'PES319', title:'Soft Skills II'}
+        ]},
+        { label: 'Elective / Minor', courses: [
+          {code:'INT327', title:'Cloud Infrastructure and Resource Management'},
+          {code:'INT245', title:'Penetration Testing'},
+          {code:'INT312', title:'Big Data Fundamentals'},
+          {code:'INT221', title:'MVC Programming'},
+          {code:'ECE129', title:'IoT for Digital Society'},
+          {code:'INT345', title:'Computer Vision'}
+        ]}
+      ]},
       'Term 7': [
         {code:'CSE339', title:'Capstone Project I'},
         {code:'CSE304', title:'Computer Graphics and Visualization'},
@@ -579,12 +659,53 @@
       var hasAny  = false;
       list.innerHTML = '';
 
+      function appendCourseItem(c, container) {
+        var isAdded = added.includes(c.code + ' — ' + c.title.toUpperCase()) ||
+                      added.includes(c.title.toUpperCase()) ||
+                      added.includes(c.code.toUpperCase());
+        var item = document.createElement('div');
+        item.className = 'catalog-item' + (isAdded ? ' added' : '');
+        item.innerHTML =
+          '<span class="catalog-code">' + c.code + '</span>' +
+          '<span class="catalog-title">' + c.title + '</span>' +
+          '<span class="catalog-add-icon">' + (isAdded ? '&minus;' : '+') + '</span>';
+        item.addEventListener('click', function() {
+          var name = c.code + ' — ' + c.title;
+          if (item.classList.contains('added')) {
+            subjects = subjects.filter(function(s) {
+              return s.name.trim().toUpperCase() !== name.toUpperCase();
+            });
+            if (subjects.length === 0) addBlankSubject();
+            renderAll();
+            item.classList.remove('added');
+            item.querySelector('.catalog-add-icon').innerHTML = '+';
+            showToast(c.code + ' removed');
+            return;
+          }
+          var blank = subjects.find(function(s) { return !s.name.trim() && !s.total && !s.attended; });
+          if (blank) { blank.name = name; }
+          else { subjects.push({ id: Date.now(), name: name, total: '', attended: '' }); }
+          renderAll();
+          item.classList.add('added');
+          item.querySelector('.catalog-add-icon').innerHTML = '&minus;';
+          showToast(c.code + ' added');
+        });
+        container.appendChild(item);
+      }
+
       terms.forEach(function(term) {
-        var courses = CATALOG[term].filter(function(c) {
+        var termData = CATALOG[term];
+        var isSubgrouped = !Array.isArray(termData) && termData.subgroups;
+
+        // Check if anything matches the query
+        var allCourses = isSubgrouped
+          ? termData.subgroups.reduce(function(a, sg) { return a.concat(sg.courses); }, [])
+          : termData;
+        var anyMatch = allCourses.some(function(c) {
           if (!query) return true;
           return c.code.toUpperCase().includes(query) || c.title.toUpperCase().includes(query);
         });
-        if (!courses.length) return;
+        if (!anyMatch) return;
         hasAny = true;
 
         var groupEl = document.createElement('div');
@@ -596,37 +717,65 @@
           groupEl.appendChild(lbl);
         }
 
-        courses.forEach(function(c) {
-          var isAdded = added.includes(c.code + ' — ' + c.title.toUpperCase()) ||
-                        added.includes(c.title.toUpperCase()) ||
-                        added.includes(c.code.toUpperCase());
-          var item = document.createElement('div');
-          item.className = 'catalog-item' + (isAdded ? ' added' : '');
-          item.innerHTML =
-            '<span class="catalog-code">' + c.code + '</span>' +
-            '<span class="catalog-title">' + c.title + '</span>' +
-            '<span class="catalog-add-icon">' + (isAdded ? '&#10003;' : '+') + '</span>';
-
-          item.addEventListener('click', function() {
-            var name = c.code + ' — ' + c.title;
-            var dupName = subjects.find(function(s) {
-              return s.name.trim().toUpperCase() === name.toUpperCase();
+        if (isSubgrouped) {
+          termData.subgroups.forEach(function(sg) {
+            var sgCourses = sg.courses.filter(function(c) {
+              if (!query) return true;
+              return c.code.toUpperCase().includes(query) || c.title.toUpperCase().includes(query);
             });
-            if (dupName) { showToast('Already in list'); return; }
+            if (!sgCourses.length) return;
+            var sgEl = document.createElement('div');
+            sgEl.className = 'catalog-subgroup';
+            var sgLbl = document.createElement('div');
+            sgLbl.className = 'catalog-subgroup-label';
+            sgLbl.textContent = sg.label;
+            sgEl.appendChild(sgLbl);
+            sgCourses.forEach(function(c) { appendCourseItem(c, sgEl); });
+            groupEl.appendChild(sgEl);
+          });
+        } else {
+          var courses = termData.filter(function(c) {
+            if (!query) return true;
+            return c.code.toUpperCase().includes(query) || c.title.toUpperCase().includes(query);
+          });
+          courses.forEach(function(c) { appendCourseItem(c, groupEl); });
+        }
+
+        // Open minor manual-entry section for Terms 5 & 6
+        if (term === 'Term 5' || term === 'Term 6') {
+          var minorWrap = document.createElement('div');
+          minorWrap.className = 'catalog-open-minor';
+          minorWrap.innerHTML =
+            '<div class="catalog-open-minor-note">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
+              ' Open Minor &nbsp;<span>— add your open elective manually</span>' +
+            '</div>' +
+            '<div class="catalog-open-minor-row">' +
+              '<input class="catalog-minor-input" type="text" placeholder="e.g. MGT101 \u2014 Management Basics">' +
+              '<button class="catalog-minor-btn">+ Add</button>' +
+            '</div>';
+
+          var minorInput = minorWrap.querySelector('.catalog-minor-input');
+          var minorBtn   = minorWrap.querySelector('.catalog-minor-btn');
+
+          function addOpenMinor() {
+            var val = minorInput.value.trim();
+            if (!val) { showToast('Enter a subject name'); return; }
             var blank = subjects.find(function(s) { return !s.name.trim() && !s.total && !s.attended; });
-            if (blank) {
-              blank.name = name;
-            } else {
-              subjects.push({ id: Date.now(), name: name, total: '', attended: '' });
-            }
+            if (blank) { blank.name = val; }
+            else { subjects.push({ id: Date.now(), name: val, total: '', attended: '' }); }
             renderAll();
-            item.classList.add('added');
-            item.querySelector('.catalog-add-icon').innerHTML = '&#10003;';
-            showToast(c.code + ' added');
+            minorInput.value = '';
+            showToast('Open minor added');
+          }
+
+          minorBtn.addEventListener('click', addOpenMinor);
+          minorInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') addOpenMinor();
           });
 
-          groupEl.appendChild(item);
-        });
+          groupEl.appendChild(minorWrap);
+        }
 
         list.appendChild(groupEl);
       });
@@ -649,20 +798,64 @@
     });
 
     /* ── Theme toggle ─────────────────────────────────── */
-    var themeBtn = document.getElementById('theme-toggle');
+    var SUN_SVG  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+    var MOON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/></svg>';
+
     function applyTheme(t, notify) {
       document.documentElement.setAttribute('data-theme', t);
       localStorage.setItem('theme', t);
-      /* Icon shows what you'll switch TO (opposite of current) */
-      themeBtn.innerHTML = t === 'dark'
-        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>'
-        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/></svg>';
+      var metaTheme = document.querySelector('meta[name="theme-color"]');
+      if (metaTheme) metaTheme.setAttribute('content', t === 'dark' ? '#020617' : '#f8fafc');
+      document.getElementById('menu-theme-icon').innerHTML   = t === 'dark' ? MOON_SVG : SUN_SVG;
+      document.getElementById('menu-theme-label').textContent = t === 'dark' ? 'Dark Mode' : 'Light Mode';
       if (notify) showToast(t === 'light' ? '☀️ Switched to Light Mode' : '🌙 Switched to Dark Mode');
     }
     applyTheme(localStorage.getItem('theme') || 'dark', false);
-    themeBtn.addEventListener('click', function() {
+    document.getElementById('theme-row').addEventListener('click', function() {
       var current = document.documentElement.getAttribute('data-theme');
       applyTheme(current === 'dark' ? 'light' : 'dark', true);
+    });
+
+    /* ── Page size control ───────────────────────────── */
+    var ZOOM_MIN = 0.7, ZOOM_MAX = 1.4, ZOOM_STEP = 0.05;
+    var currentZoom = parseFloat(localStorage.getItem('pageZoom')) || 1;
+
+    function applyZoom(z, notify) {
+      currentZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, parseFloat(z.toFixed(2))));
+      document.documentElement.style.zoom = currentZoom;
+      localStorage.setItem('pageZoom', currentZoom);
+      var pct = Math.round(currentZoom * 100);
+      document.getElementById('size-val').textContent = pct + '%';
+      document.getElementById('size-down').disabled = currentZoom <= ZOOM_MIN;
+      document.getElementById('size-up').disabled   = currentZoom >= ZOOM_MAX;
+      if (notify) showToast('Page size: ' + pct + '%');
+    }
+    applyZoom(currentZoom, false);
+    document.getElementById('size-down').addEventListener('click', function(e) { e.stopPropagation(); applyZoom(currentZoom - ZOOM_STEP, true); });
+    document.getElementById('size-up').addEventListener('click',   function(e) { e.stopPropagation(); applyZoom(currentZoom + ZOOM_STEP, true); });
+
+    /* ── 3-dot menu open/close ───────────────────────── */
+    var menuBtn      = document.getElementById('menu-btn');
+    var menuDropdown = document.getElementById('menu-dropdown');
+
+    menuBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var isOpen = menuDropdown.classList.contains('open');
+      menuDropdown.classList.toggle('open', !isOpen);
+      menuBtn.classList.toggle('active', !isOpen);
+    });
+
+    // Close when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!menuDropdown.contains(e.target) && e.target !== menuBtn) {
+        menuDropdown.classList.remove('open');
+        menuBtn.classList.remove('active');
+      }
+    });
+
+    // Stop size-row clicks from closing the dropdown
+    document.getElementById('theme-row').addEventListener('click', function(e) {
+      e.stopPropagation();
     });
 
     // Dismiss loader after 3.5 seconds
