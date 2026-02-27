@@ -494,142 +494,208 @@
 
     /* ── Course Catalog ─────────────────────────────────────── */
     var CATALOG = {
-      'Term 1': [
-        {code:'CSE111', title:'Orientation to Computing I'},
-        {code:'CSE326', title:'Internet Programming Laboratory'},
-        {code:'INT108', title:'Python Programming'},
-        {code:'MTH174', title:'Engineering Mathematics'},
-        {code:'PES318', title:'Soft Skills I'},
-        {code:'ECE249', title:'Basic Electrical and Electronics Engineering'},
-        {code:'MEC136', title:'Engineering Graphics and Digital Fabrication'},
-        {code:'CHE110', title:'Environmental Studies'},
-        {code:'PHY110', title:'Engineering Physics'},
-        {code:'ECE279', title:'Basic Electrical and Electronics Engineering Laboratory'}
-      ],
-      'Term 2': [
-        {code:'CSE101', title:'Computer Programming'},
-        {code:'CSE121', title:'Orientation to Computing II'},
-        {code:'CSE320', title:'Software Engineering'},
-        {code:'INT306', title:'Database Management Systems'},
-        {code:'MTH401', title:'Discrete Mathematics'},
-        {code:'PEL121', title:'Communication Skills I'},
-        {code:'PEL125', title:'Upper Intermediate Communication Skills I'},
-        {code:'PEL130', title:'Advanced Communication Skills I'}
-      ],
-      'Term 3': [
-        {code:'CSE202', title:'Object Oriented Programming'},
-        {code:'CSE205', title:'Data Structures and Algorithms'},
-        {code:'CSE211', title:'Computer Organization and Design'},
-        {code:'CSE306', title:'Computer Networks'},
-        {code:'CSE307', title:'Internetworking Essentials'},
-        {code:'GEN231', title:'Community Development Project'},
-        {code:'CSE316', title:'Operating Systems'},
-        {code:'MTH302', title:'Probability and Statistics'},
-        {code:'CSE325', title:'Operating Systems Laboratory'},
-        {code:'PEL132', title:'Communication Skills II'},
-        {code:'PEL134', title:'Upper Intermediate Communication Skills II'},
-        {code:'PEL136', title:'Advanced Communication Skills II'}
-      ],
-      'Term 4': [
-        {code:'CSE310', title:'Programming in Java'},
-        {code:'CSE408', title:'Design and Analysis of Algorithms'},
-        {code:'INT428', title:'Artificial Intelligence Essentials'},
-        {code:'PEA305', title:'Analytical Skills I'},
-        {code:'PEA307', title:'Advanced Analytical Skills I'},
-        {code:'INT330', title:'Managing Cloud Solutions'},
-        {code:'INT242', title:'Cyber Security Essentials'},
-        {code:'INT217', title:'Introduction to Data Management'},
-        {code:'INT219', title:'Front End Web Developer'},
-        {code:'ECE217', title:'Introduction to Internet of Things'},
-        {code:'INT254', title:'Foundations of Machine Learning'},
-        {code:'CSE374', title:'Advance Software Engineering'},
-        {code:'INT362', title:'Cloud Architecture and Implementation I'},
-        {code:'INT249', title:'System Administration'},
-        {code:'INT375', title:'Data Science Toolbox: Python Programming'},
-        {code:'INT220', title:'Server Side Scripting'},
-        {code:'ECE341', title:'Programming IoT'},
-        {code:'INT354', title:'Machine Learning I'},
-        {code:'CSE375', title:'Software Testing'}
-      ],
+      'Term 1': { subgroups: [
+        { label: 'Core Subjects', courses: [
+          {code:'CSE111', title:'Orientation to Computing I'},
+          {code:'CSE326', title:'Internet Programming Laboratory'},
+          {code:'INT108', title:'Python Programming'},
+          {code:'MTH174', title:'Engineering Mathematics'},
+          {code:'PES318', title:'Soft Skills I'}
+        ]},
+        { label: 'Core Electives (pick one per basket)', courses: [
+          {code:'ECE249', title:'Basic Electrical and Electronics Engineering'},
+          {code:'MEC136', title:'Engineering Graphics and Digital Fabrication'},
+          {code:'CHE110', title:'Environmental Studies'},
+          {code:'PHY110', title:'Engineering Physics'},
+          {code:'ECE279', title:'Basic Electrical and Electronics Engineering Laboratory'}
+        ]}
+      ]},
+      'Term 2': { subgroups: [
+        { label: 'Core Subjects', courses: [
+          {code:'CSE101', title:'Computer Programming'},
+          {code:'CSE121', title:'Orientation to Computing II'},
+          {code:'CSE320', title:'Software Engineering'},
+          {code:'INT306', title:'Database Management Systems'},
+          {code:'MTH401', title:'Discrete Mathematics'}
+        ]},
+        { label: 'Core Electives (pick one per basket)', courses: [
+          {code:'ECE249', title:'Basic Electrical and Electronics Engineering'},
+          {code:'MEC136', title:'Engineering Graphics and Digital Fabrication'},
+          {code:'CHE110', title:'Environmental Studies'},
+          {code:'PHY110', title:'Engineering Physics'},
+          {code:'ECE279', title:'Basic Electrical and Electronics Engineering Laboratory'}
+        ]},
+        { label: 'Language Elective (pick one)', courses: [
+          {code:'PEL121', title:'Communication Skills I'},
+          {code:'PEL125', title:'Upper Intermediate Communication Skills I'},
+          {code:'PEL130', title:'Advanced Communication Skills I'}
+        ]}
+      ]},
+      'Term 3': { subgroups: [
+        { label: 'Core Subjects', courses: [
+          {code:'CSE202', title:'Object Oriented Programming'},
+          {code:'CSE205', title:'Data Structures and Algorithms'},
+          {code:'CSE211', title:'Computer Organization and Design'},
+          {code:'CSE306', title:'Computer Networks'},
+          {code:'CSE307', title:'Internetworking Essentials'},
+          {code:'GEN231', title:'Community Development Project'}
+        ]},
+        { label: 'Core Electives (pick one per basket)', courses: [
+          {code:'CSE316', title:'Operating Systems'},
+          {code:'MTH302', title:'Probability and Statistics'},
+          {code:'CSE325', title:'Operating Systems Laboratory'}
+        ]},
+        { label: 'Language Elective (pick one)', courses: [
+          {code:'PEL132', title:'Communication Skills II'},
+          {code:'PEL134', title:'Upper Intermediate Communication Skills II'},
+          {code:'PEL136', title:'Advanced Communication Skills II'}
+        ]}
+      ]},
+      'Term 4': { subgroups: [
+        { label: 'Core Subjects', courses: [
+          {code:'CSE310', title:'Programming in Java'},
+          {code:'CSE408', title:'Design and Analysis of Algorithms'},
+          {code:'INT428', title:'Artificial Intelligence Essentials'}
+        ]},
+        { label: 'Aptitude Elective (pick one)', courses: [
+          {code:'PEA305', title:'Analytical Skills I'},
+          {code:'PEA307', title:'Advanced Analytical Skills I'}
+        ]},
+        { label: 'Core Electives (pick one per basket)', courses: [
+          {code:'CSE316', title:'Operating Systems'},
+          {code:'MTH302', title:'Probability and Statistics'},
+          {code:'CSE325', title:'Operating Systems Laboratory'}
+        ]},
+        { label: 'Engineering Minor Elective 1 (pick one)', courses: [
+          {code:'INT330', title:'Managing Cloud Solutions'},
+          {code:'INT242', title:'Cyber Security Essentials'},
+          {code:'INT217', title:'Introduction to Data Management'},
+          {code:'INT219', title:'Front End Web Developer'},
+          {code:'ECE217', title:'Introduction to Internet of Things'},
+          {code:'INT254', title:'Foundations of Machine Learning'},
+          {code:'CSE374', title:'Advance Software Engineering'}
+        ]},
+        { label: 'Engineering Minor Elective 2 (pick one)', courses: [
+          {code:'INT362', title:'Cloud Architecture and Implementation I'},
+          {code:'INT249', title:'System Administration'},
+          {code:'INT375', title:'Data Science Toolbox: Python Programming'},
+          {code:'INT220', title:'Server Side Scripting'},
+          {code:'ECE341', title:'Programming IoT'},
+          {code:'INT354', title:'Machine Learning I'},
+          {code:'CSE375', title:'Software Testing'}
+        ]}
+      ]},
       'Term 5': { subgroups: [
         { label: 'Core Subjects', courses: [
-          {code:'CSE322', title:'Formal Languages and Automation Theory'},
-          {code:'CSE376', title:'Automated Testing'},
-          {code:'CSE377', title:'Advance Testing Technologies'},
-          {code:'PEA306', title:'Analytical Skills II'},
-          {code:'PEA308', title:'Advanced Analytical Skills II'},
-          {code:'CSE329', title:'Prelude to Competitive Coding'},
-          {code:'CSE333', title:'Combinatorial Studies I'},
-          {code:'CSE330', title:'Competitive Coding Approaches — Techniques'},
-          {code:'PEV301', title:'Verbal Ability'},
-          {code:'CSE343', title:'Training in Programming'},
-          {code:'CSE443', title:'Seminar on Summer Training'}
+          {code:'CSE322', title:'Formal Languages and Automation Theory'}
         ]},
-        { label: 'Elective / Minor', courses: [
+        { label: 'Engineering Minor Elective 3 (pick one)', courses: [
           {code:'INT363', title:'Cloud Microservices'},
           {code:'INT250', title:'Digital Evidence Analysis'},
           {code:'INT374', title:'Data Analytics with Power BI'},
           {code:'INT252', title:'Web App Development with ReactJS'},
           {code:'ECE128', title:'Introduction to IoT Networking Protocols'},
           {code:'INT344', title:'Natural Language Processing'},
+          {code:'CSE376', title:'Automated Testing'}
+        ]},
+        { label: 'Engineering Minor Elective 4 (pick one)', courses: [
           {code:'INT364', title:'Cloud Architecture and Implementation II'},
           {code:'INT244', title:'Securing Computing Systems'},
           {code:'INT234', title:'Predictive Analytics'},
           {code:'INT222', title:'Advanced Web Development'},
           {code:'ECE237', title:'Architecting Smart IoT Devices'},
-          {code:'INT423', title:'Machine Learning II'}
+          {code:'INT423', title:'Machine Learning II'},
+          {code:'CSE377', title:'Advance Testing Technologies'}
+        ]},
+        { label: 'Pathway Elective 1 (pick one)', courses: [
+          {code:'PEA306', title:'Analytical Skills II'},
+          {code:'PEA308', title:'Advanced Analytical Skills II'},
+          {code:'CSE329', title:'Prelude to Competitive Coding'}
+        ]},
+        { label: 'Pathway Elective 2 (pick one)', courses: [
+          {code:'CSE333', title:'Combinatorial Studies I'},
+          {code:'CSE330', title:'Competitive Coding Approaches — Techniques'},
+          {code:'PEV301', title:'Verbal Ability'}
+        ]},
+        { label: 'Training Elective (pick one)', courses: [
+          {code:'CSE343', title:'Training in Programming'},
+          {code:'CSE443', title:'Seminar on Summer Training'}
         ]}
       ]},
       'Term 6': { subgroups: [
         { label: 'Core Subjects', courses: [
           {code:'CSE332', title:'Industry Ethics and Legal Issues'},
-          {code:'CSE393', title:'Online Academic Course'},
-          {code:'CSE378', title:'Web Services API Automation Testing'},
-          {code:'CSE334', title:'Combinatorial Studies II'},
-          {code:'CSE331', title:'Coding Pearls'},
-          {code:'CSE357', title:'Combinatorial Studies'},
-          {code:'PES319', title:'Soft Skills II'}
+          {code:'CSE393', title:'Online Academic Course'}
         ]},
-        { label: 'Elective / Minor', courses: [
+        { label: 'Engineering Minor Elective 5 (pick one)', courses: [
           {code:'INT327', title:'Cloud Infrastructure and Resource Management'},
           {code:'INT245', title:'Penetration Testing'},
           {code:'INT312', title:'Big Data Fundamentals'},
           {code:'INT221', title:'MVC Programming'},
           {code:'ECE129', title:'IoT for Digital Society'},
-          {code:'INT345', title:'Computer Vision'}
+          {code:'INT345', title:'Computer Vision'},
+          {code:'CSE378', title:'Web Services API Automation Testing'}
+        ]},
+        { label: 'Pathway Elective 3 (pick one)', courses: [
+          {code:'CSE334', title:'Combinatorial Studies II'},
+          {code:'CSE331', title:'Coding Pearls'},
+          {code:'CSE357', title:'Combinatorial Studies'}
+        ]},
+        { label: 'Pathway Elective 4 (pick one)', courses: [
+          {code:'PES319', title:'Soft Skills II'}
         ]}
       ]},
-      'Term 7': [
-        {code:'CSE339', title:'Capstone Project I'},
-        {code:'CSE304', title:'Computer Graphics and Visualization'},
-        {code:'CSE327', title:'Simulation and Modelling'},
-        {code:'CSE406', title:'Advanced Java Programming'},
-        {code:'CSE434', title:'Game Development in 3D'},
-        {code:'CSE436', title:'Blockchain'},
-        {code:'INT402', title:'Modern Web Programming Tools and Techniques'},
-        {code:'CSE328', title:'Simulation and Modelling Laboratory'},
-        {code:'INT328', title:'Network Virtualization and Cloud Security'},
-        {code:'INT251', title:'Malware Analysis and Cyber Defence'},
-        {code:'INT315', title:'Cluster Computing'},
-        {code:'INT253', title:'Web Development in Python using Django'},
-        {code:'ECE140', title:'Workshop on IoT for Digital Society'},
-        {code:'INT422', title:'Deep Learning'},
-        {code:'CSE379', title:'Mobile Automated Testing'},
-        {code:'CSE335', title:'Combinatorial Studies III'},
-        {code:'CSE447', title:'Industry Co-Op Project I'}
-      ],
-      'Term 8': [
-        {code:'CSE435', title:'Comprehensive Seminar'},
-        {code:'CSE439', title:'Capstone Project II'},
-        {code:'CSE403', title:'Network Security and Cryptography'},
-        {code:'CSE493', title:'Linux System Administration'},
-        {code:'CSE504', title:'Storage Technology Foundation'},
-        {code:'INT411', title:'Software Project Management'},
-        {code:'CSE507', title:'Storage Technology Foundation Laboratory'},
-        {code:'INT416', title:'Software Project Management Laboratory'},
-        {code:'CSE441', title:'Industry Internship Project'},
-        {code:'CSE448', title:'Industry Co-Op Project II'}
-      ]
+      'Term 7': { subgroups: [
+        { label: 'Core Subjects', courses: [
+          {code:'CSE339', title:'Capstone Project I'}
+        ]},
+        { label: 'Department Elective 1 (pick one)', courses: [
+          {code:'CSE304', title:'Computer Graphics and Visualization'},
+          {code:'CSE327', title:'Simulation and Modelling'},
+          {code:'CSE406', title:'Advanced Java Programming'},
+          {code:'CSE434', title:'Game Development in 3D'},
+          {code:'CSE436', title:'Blockchain'},
+          {code:'INT402', title:'Modern Web Programming Tools and Techniques'}
+        ]},
+        { label: 'Dept Elective 1 Lab', courses: [
+          {code:'CSE328', title:'Simulation and Modelling Laboratory'}
+        ]},
+        { label: 'Engineering Minor Elective 6 (pick one)', courses: [
+          {code:'INT328', title:'Network Virtualization and Cloud Security'},
+          {code:'INT251', title:'Malware Analysis and Cyber Defence'},
+          {code:'INT315', title:'Cluster Computing'},
+          {code:'INT253', title:'Web Development in Python using Django'},
+          {code:'ECE140', title:'Workshop on IoT for Digital Society'},
+          {code:'INT422', title:'Deep Learning'},
+          {code:'CSE379', title:'Mobile Automated Testing'}
+        ]},
+        { label: 'Pathway Elective (pick one)', courses: [
+          {code:'CSE335', title:'Combinatorial Studies III'}
+        ]},
+        { label: 'Industrial Internship', courses: [
+          {code:'CSE447', title:'Industry Co-Op Project I'}
+        ]}
+      ]},
+      'Term 8': { subgroups: [
+        { label: 'Core Subjects', courses: [
+          {code:'CSE435', title:'Comprehensive Seminar'},
+          {code:'CSE439', title:'Capstone Project II'}
+        ]},
+        { label: 'Department Elective 2 (pick one)', courses: [
+          {code:'CSE403', title:'Network Security and Cryptography'},
+          {code:'CSE493', title:'Linux System Administration'},
+          {code:'CSE504', title:'Storage Technology Foundation'},
+          {code:'INT411', title:'Software Project Management'}
+        ]},
+        { label: 'Dept Elective 2 Lab (pick one)', courses: [
+          {code:'CSE507', title:'Storage Technology Foundation Laboratory'},
+          {code:'INT416', title:'Software Project Management Laboratory'}
+        ]},
+        { label: 'Industrial Internship (pick one)', courses: [
+          {code:'CSE441', title:'Industry Internship Project'},
+          {code:'CSE448', title:'Industry Co-Op Project II'}
+        ]}
+      ]}
     };
 
     var catalogActiveTerm = 'All';
@@ -760,8 +826,8 @@
           courses.forEach(function(c) { appendCourseItem(c, groupEl); });
         }
 
-        // Open minor manual-entry section for Terms 5 & 6
-        if (term === 'Term 5' || term === 'Term 6') {
+        // Open minor manual-entry section for Terms 5, 6, 7 & 8
+        if (term === 'Term 5' || term === 'Term 6' || term === 'Term 7' || term === 'Term 8') {
           var minorWrap = document.createElement('div');
           minorWrap.className = 'catalog-open-minor';
           minorWrap.innerHTML =
@@ -857,16 +923,43 @@
     /* ── 3-dot menu open/close ───────────────────────── */
     var menuBtn      = document.getElementById('menu-btn');
     var menuDropdown = document.getElementById('menu-dropdown');
+    var menuCloseTimer = null;
 
-    function openMenu()  { menuDropdown.classList.add('open');    menuBtn.classList.add('active'); }
-    function closeMenu() { menuDropdown.classList.remove('open'); menuBtn.classList.remove('active'); }
+    function openMenu() {
+      clearTimeout(menuCloseTimer);
+      menuDropdown.classList.add('open');
+      menuBtn.classList.add('active');
+    }
+    function scheduleClose() {
+      menuCloseTimer = setTimeout(function() {
+        menuDropdown.classList.remove('open');
+        menuBtn.classList.remove('active');
+      }, 180);
+    }
+    function closeMenu() {
+      clearTimeout(menuCloseTimer);
+      menuDropdown.classList.remove('open');
+      menuBtn.classList.remove('active');
+    }
 
+    // Hover: open on mouse-enter button (includes extended ::before zone), close after leaving both
+    menuBtn.addEventListener('mouseenter', openMenu);
+    menuBtn.addEventListener('mouseleave', function(e) {
+      // Only schedule close if not moving into the dropdown
+      if (!menuDropdown.contains(e.relatedTarget)) scheduleClose();
+    });
+    menuDropdown.addEventListener('mouseenter', function() { clearTimeout(menuCloseTimer); });
+    menuDropdown.addEventListener('mouseleave', function(e) {
+      if (!menuBtn.contains(e.relatedTarget)) scheduleClose();
+    });
+
+    // Click: toggle (for touch / keyboard users)
     menuBtn.addEventListener('click', function(e) {
       e.stopPropagation();
       menuDropdown.classList.contains('open') ? closeMenu() : openMenu();
     });
 
-    // Close when touching/clicking outside — pointerdown fires before click, more reliable on touch
+    // Close on outside tap (touch devices)
     document.addEventListener('pointerdown', function(e) {
       if (menuDropdown.classList.contains('open') &&
           !menuDropdown.contains(e.target) &&
@@ -875,10 +968,8 @@
       }
     });
 
-    // Stop size-row clicks from closing the dropdown
-    document.getElementById('menu-dropdown').addEventListener('click', function(e) {
-      e.stopPropagation();
-    });
+    // Stop clicks inside dropdown from bubbling out
+    menuDropdown.addEventListener('click', function(e) { e.stopPropagation(); });
 
     // Dismiss loader after 3.5 seconds
     setTimeout(function() {

@@ -227,7 +227,7 @@ header {
   position: absolute;
   top: 50%;
   left: 16px;
-  transform: translateY(-50%);
+  transform: translateY(-50%);  
   width: 44px;
   height: 44px;
   background: var(--surface-raised);
@@ -243,6 +243,14 @@ header {
   touch-action: manipulation;
   transition: background 0.2s, border-color 0.2s, color 0.2s;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Extended invisible hover zone — 24px padding around button */
+.menu-btn::before {
+  content: '';
+  position: absolute;
+  inset: -24px;
+  border-radius: 99px;
 }
 
 .menu-btn:hover,
