@@ -794,57 +794,6 @@ header p {
 /* ═══════════════════════════════════════════════
    CALCULATE BUTTON
 ═══════════════════════════════════════════════ */
-.calc-btn {
-  width: 100%;
-  margin-top: 14px;
-  height: 48px;
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-end) 100%);
-  border: none;
-  border-radius: var(--radius-md);
-  color: #fff;
-  font-family: 'Space Grotesk', inherit;
-  font-size: 0.88rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  box-shadow: 0 6px 20px var(--accent-glow);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.15s;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.calc-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.45);
-}
-
-.calc-btn:active {
-  transform: scale(0.97);
-  filter: brightness(0.88);
-}
-
-.calc-btn.idle {
-  background: var(--surface-raised);
-  color: var(--text-muted);
-  box-shadow: none;
-  font-weight: 500;
-}
-
-.calc-btn .kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border: 1.5px solid rgba(255,255,255,0.4);
-  border-radius: 5px;
-  font-size: 0.72rem;
-  line-height: 1;
-}
-
 /* ═══════════════════════════════════════════════
    PROGRESS + STATUS
 ═══════════════════════════════════════════════ */

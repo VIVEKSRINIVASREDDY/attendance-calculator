@@ -252,9 +252,6 @@
             '<input type="number" class="inp-thr" min="1" max="100" placeholder="' + threshold + '" value="' + (subj.customThreshold !== '' ? subj.customThreshold : '') + '" inputmode="numeric" />' +
           '</div>' +
         '</div>' +
-        '<button class="calc-btn">' +
-          '<span class="kbd">&#8629;</span> Calculate' +
-        '</button>' +
         '<div class="card-bottom">' +
           '<div class="progress-row">' +
             '<div class="progress-track">' +
@@ -282,7 +279,8 @@
         s.attended = isNaN(av) ? '' : Math.max(0, av);
         var thrv   = parseFloat(thrInp.value);
         s.customThreshold = isNaN(thrv) ? '' : Math.min(100, Math.max(1, thrv));
-        if (s.total !== '' && s.attended !== '' && parseFloat(s.attended) > parseFloat(s.total)) {
+        // Only clamp attended > total on explicit Calculate, not during live typing
+        if (andRender && s.total !== '' && s.attended !== '' && parseFloat(s.attended) > parseFloat(s.total)) {
           showToast('⚠️ Attended cannot exceed total classes', 'warn');
           attInp.classList.add('inp-error');
           setTimeout(function() { attInp.classList.remove('inp-error'); }, 2000);
@@ -311,49 +309,16 @@
         if (!isNaN(v)) thrInp.value = Math.min(100, Math.max(1, Math.round(v)));
       });
 
-      // Keyboard flow: Enter/Tab moves between inputs naturally, Enter on last triggers calc
+      // Keyboard flow: Enter moves to next input
       var flowInputs = [attInp, totInp, thrInp];
       flowInputs.forEach(function(inp, idx) {
         inp.addEventListener('keydown', function(e) {
           if (e.key === 'Enter') {
             e.preventDefault();
-            if (idx < flowInputs.length - 1) {
-              flowInputs[idx + 1].focus();
-            } else {
-              syncInputs(true);
-              card.querySelector('.calc-btn').focus();
-            }
+            if (idx < flowInputs.length - 1) flowInputs[idx + 1].focus();
           }
         });
         inp.addEventListener('input', function() { syncInputs(false); });
-      });
-
-      card.querySelector('.calc-btn').addEventListener('click', function() {
-        var tv = totInp.value.trim();
-        var av = attInp.value.trim();
-        if (!tv && !av) {
-          showToast('⚠️ Enter Delivered and Attended classes first', 'warn');
-          totInp.classList.add('inp-error');
-          attInp.classList.add('inp-error');
-          setTimeout(function() {
-            totInp.classList.remove('inp-error');
-            attInp.classList.remove('inp-error');
-          }, 2000);
-          return;
-        }
-        if (!tv) {
-          showToast('⚠️ Enter Delivered classes first', 'warn');
-          totInp.classList.add('inp-error');
-          setTimeout(function() { totInp.classList.remove('inp-error'); }, 2000);
-          return;
-        }
-        if (!av) {
-          showToast('⚠️ Enter Attended classes first', 'warn');
-          attInp.classList.add('inp-error');
-          setTimeout(function() { attInp.classList.remove('inp-error'); }, 2000);
-          return;
-        }
-        syncInputs(true);
       });
 
       card.querySelector('.btn-delete').addEventListener('click', function() {
@@ -384,7 +349,14 @@
 
       var pctEl = document.getElementById('s-total-pct');
       pctEl.textContent = overall !== null ? overall.toFixed(1) + '%' : '—';
-      pctEl.style.color = overall === null ? 'var(--accent)' : overall >= threshold ? 'var(--success)' : 'var(--danger)';
+      var overallColor = 'var(--accent)';
+      if (overall !== null) {
+        if      (overall >= 75) overallColor = 'var(--success)';
+        else if (overall >= 60) overallColor = 'var(--info)';
+        else if (overall >= 50) overallColor = 'var(--warning)';
+        else                    overallColor = 'var(--danger)';
+      }
+      pctEl.style.color = overallColor;
       document.getElementById('s-subjects').textContent = subjects.filter(function(s) { return s.name.trim() || s.total !== '' || s.attended !== ''; }).length;
       document.getElementById('s-safe').textContent     = safe;
       document.getElementById('s-danger').textContent   = valid.length - safe;
